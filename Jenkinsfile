@@ -11,12 +11,8 @@ pipeline {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
           dir('terraform') {
             sh '''
-              /bin/bash -c "
-                export PATH=/opt/homebrew/bin:$PATH
-                echo Terraform version:
-                terraform init
-                terraform apply -auto-approve
-              "
+              /opt/homebrew/bin/terraform init
+              /opt/homebrew/bin/terraform apply -auto-approve
             '''
           }
         }
@@ -26,8 +22,8 @@ pipeline {
     stage('Generate Ansible Inventory') {
       steps {
         script {
-          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
-          def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
+          def bastionIp = sh(script: "/opt/homebrew/bin/terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
+          def mongoIp   = sh(script: "/opt/homebrew/bin/terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
 
           writeFile file: 'ansible/inventory.ini', text: """
 [mongo]
@@ -40,11 +36,8 @@ mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=
     stage('Ansible: Install MongoDB') {
       steps {
         sh '''
-          /bin/bash -c "
-            export PATH=/opt/homebrew/bin:$PATH
-            ansible -i ansible/inventory.ini mongo1 -m ping
-            ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
-          "
+          ansible -i ansible/inventory.ini mongo1 -m ping
+          ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
         '''
       }
     }
@@ -52,10 +45,7 @@ mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=
     stage('Verify MongoDB Status') {
       steps {
         sh '''
-          /bin/bash -c "
-            export PATH=/opt/homebrew/bin:$PATH
-            ansible -i ansible/inventory.ini mongo1 -a 'systemctl is-active mongod || true'
-          "
+          ansible -i ansible/inventory.ini mongo1 -a "systemctl is-active mongod || true"
         '''
       }
     }
@@ -63,10 +53,10 @@ mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=
 
   post {
     success {
-      echo '✅ MongoDB infra is ready and running.'
+      echo 'MongoDB infra is ready and running.'
     }
     failure {
-      echo '❌ Pipeline failed. Check logs.'
+      echo 'Pipeline failed. Check logs.'
     }
   }
 }
