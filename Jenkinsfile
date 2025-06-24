@@ -8,7 +8,7 @@ pipeline {
   stages {
     stage('Terraform: Init & Apply') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds-demo']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
           dir('terraform') {
             sh '''
               terraform init
