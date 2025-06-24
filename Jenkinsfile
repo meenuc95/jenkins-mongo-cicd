@@ -11,6 +11,8 @@ pipeline {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
           dir('terraform') {
             sh '''
+              export PATH=/opt/homebrew/bin:$PATH
+              echo "Terraform version:"
               terraform init
               terraform apply -auto-approve
             '''
