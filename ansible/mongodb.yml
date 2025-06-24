@@ -1,0 +1,44 @@
+- name: Install MongoDB
+  hosts: mongo
+  become: yes
+  tasks:
+
+    - name: Install gnupg
+      apt:
+        name: gnupg
+        state: present
+        update_cache: yes
+
+    - name: Add MongoDB GPG key
+      apt_key:
+        url: https://www.mongodb.org/static/pgp/server-6.0.asc
+        state: present
+
+    - name: Add MongoDB repository
+      apt_repository:
+        repo: deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse
+        state: present
+        update_cache: yes
+
+    - name: Download libssl1.1 from Ubuntu archive
+      get_url:
+        url: https://launchpad.net/ubuntu/+archive/primary/+files/libssl1.1_1.1.1f-1ubuntu2.16_amd64.deb
+        dest: /tmp/libssl1.1.deb
+
+    - name: Install libssl1.1 manually
+      apt:
+        deb: /tmp/libssl1.1.deb
+        state: present
+
+
+    - name: Install MongoDB
+      apt:
+        name: mongodb-org
+        state: present
+        update_cache: yes
+
+    - name: Enable and start MongoDB
+      systemd:
+        name: mongod
+        enabled: yes
+        state: started
