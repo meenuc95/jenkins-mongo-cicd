@@ -10,12 +10,14 @@ pipeline {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
           dir('terraform') {
-            sh(script: '''
-              export PATH=/opt/homebrew/bin:$PATH
-              echo "Terraform version:"
-              terraform init
-              terraform apply -auto-approve
-            ''', shell: '/bin/bash')
+            sh '''
+              /bin/bash -c "
+                export PATH=/opt/homebrew/bin:$PATH
+                echo Terraform version:
+                terraform init
+                terraform apply -auto-approve
+              "
+            '''
           }
         }
       }
@@ -37,30 +39,34 @@ mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=
 
     stage('Ansible: Install MongoDB') {
       steps {
-        sh(script: '''
-          export PATH=/opt/homebrew/bin:$PATH
-          ansible -i ansible/inventory.ini mongo1 -m ping
-          ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
-        ''', shell: '/bin/bash')
+        sh '''
+          /bin/bash -c "
+            export PATH=/opt/homebrew/bin:$PATH
+            ansible -i ansible/inventory.ini mongo1 -m ping
+            ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
+          "
+        '''
       }
     }
 
     stage('Verify MongoDB Status') {
       steps {
-        sh(script: '''
-          export PATH=/opt/homebrew/bin:$PATH
-          ansible -i ansible/inventory.ini mongo1 -a "systemctl is-active mongod || true"
-        ''', shell: '/bin/bash')
+        sh '''
+          /bin/bash -c "
+            export PATH=/opt/homebrew/bin:$PATH
+            ansible -i ansible/inventory.ini mongo1 -a 'systemctl is-active mongod || true'
+          "
+        '''
       }
     }
   }
 
   post {
     success {
-      echo 'MongoDB infra is ready and running.'
+      echo '✅ MongoDB infra is ready and running.'
     }
     failure {
-      echo 'Pipeline failed. Check logs.'
+      echo '❌ Pipeline failed. Check logs.'
     }
   }
 }
