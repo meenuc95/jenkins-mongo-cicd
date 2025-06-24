@@ -6,6 +6,11 @@ pipeline {
   }
 
   stages {
+    stage('Debug PATH') {
+  steps {
+    sh 'echo $PATH && /opt/homebrew/bin/terraform -version'
+  }
+}
     stage('Terraform: Init & Apply') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
