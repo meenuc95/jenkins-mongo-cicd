@@ -4,20 +4,18 @@ pipeline {
   environment {
     AWS_DEFAULT_REGION = 'us-east-1'
   }
+  tools{
+    terraform 'terraform-11'
+  }
 
   stages {
-    stage('Debug PATH') {
-  steps {
-    sh 'echo $PATH && /opt/homebrew/bin/terraform -version'
-  }
-}
     stage('Terraform: Init & Apply') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS-Jenkins-Demo']]) {
           dir('terraform') {
             sh '''
-              /opt/homebrew/bin/terraform init
-              /opt/homebrew/bin/terraform apply -auto-approve
+              terraform init
+              terraform apply -auto-approve
             '''
           }
         }
@@ -27,8 +25,8 @@ pipeline {
     stage('Generate Ansible Inventory') {
       steps {
         script {
-          def bastionIp = sh(script: "/opt/homebrew/bin/terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
-          def mongoIp   = sh(script: "/opt/homebrew/bin/terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
+          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
+          def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
 
           writeFile file: 'ansible/inventory.ini', text: """
 [mongo]
