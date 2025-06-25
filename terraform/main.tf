@@ -170,11 +170,3 @@ EOF
   tags = { Name = "mongo-server" }
 }
 
-# Terraform Outputs (Optional but useful)
-output "bastion_host_ip" {
-  value = aws_instance.bastion.public_ip
-}
-
-output "mongo_private_ip" {
-  value = aws_instance.mongo.private_ip
-}
