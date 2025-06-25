@@ -10,24 +10,6 @@ pipeline {
   }
 
   stages {
-    stage('Pre-check VPC Limit') {
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-demo']]) {
-          sh '''
-            echo "Checking existing VPC count..."
-            VPC_COUNT=$(aws ec2 describe-vpcs --region $AWS_DEFAULT_REGION --query "Vpcs" | grep -c "VpcId")
-            LIMIT=5  # Adjust based on your AWS account's actual limit
-            echo "Current VPC count: $VPC_COUNT"
-
-            if [ "$VPC_COUNT" -ge "$LIMIT" ]; then
-              echo "⚠️ VPC limit reached ($VPC_COUNT/$LIMIT). You must destroy existing infra or request a limit increase."
-              exit 1
-            fi
-          '''
-        }
-      }
-    }
-
     stage('Terraform Init') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-demo']]) {
@@ -38,7 +20,34 @@ pipeline {
       }
     }
 
-    stage('Terraform Destroy (Optional)') {
+    stage('Check VPC Limit and Destroy if Needed') {
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-demo']]) {
+          script {
+            def vpcCount = sh(
+              script: '''
+                echo "Checking existing VPC count..."
+                VPC_COUNT=$(aws ec2 describe-vpcs --region $AWS_DEFAULT_REGION --query "Vpcs[*].VpcId" --output text | wc -w)
+                echo "Current VPC count: $VPC_COUNT"
+                echo $VPC_COUNT
+              ''',
+              returnStdout: true
+            ).trim().toInteger()
+
+            if (vpcCount >= 5) {
+              echo "⚠️ VPC limit reached ($vpcCount/5). Destroying existing infrastructure..."
+              dir('terraform') {
+                sh 'terraform destroy -auto-approve'
+              }
+            } else {
+              echo "✅ VPC usage within limit: $vpcCount/5"
+            }
+          }
+        }
+      }
+    }
+
+    stage('Terraform Destroy (If Selected)') {
       when {
         expression { return params.DESTROY_BEFORE_APPLY }
       }
@@ -69,7 +78,7 @@ pipeline {
 
           writeFile file: 'ansible/inventory.ini', text: """
 [mongo]
-mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/.ssh/ubuntu-slave-jen.pem ansible_ssh_common_args='-o ProxyCommand="ssh -i /home/ubuntu/.ssh/ubuntu-slave-jen.pem -W %h:%p ubuntu@${bastionIp}"'
+mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/.ssh/jenkins-key ansible_ssh_common_args='-o ProxyCommand="ssh -i /home/ubuntu/.ssh/jenkins-key -W %h:%p ubuntu@${bastionIp}"'
           """
         }
       }
