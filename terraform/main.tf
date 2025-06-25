@@ -41,6 +41,7 @@ resource "aws_route_table" "public_rt" {
   }
   tags = { Name = "public-rt" }
 }
+
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public_rt.id
@@ -51,11 +52,13 @@ resource "aws_eip" "nat_eip" {
   domain = "vpc"
   tags   = { Name = "nat-eip" }
 }
+
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat_eip.id
   subnet_id     = aws_subnet.public.id
   tags          = { Name = "nat-gateway" }
 }
+
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.main.id
   route {
@@ -64,12 +67,13 @@ resource "aws_route_table" "private_rt" {
   }
   tags = { Name = "private-rt" }
 }
+
 resource "aws_route_table_association" "private_assoc" {
   subnet_id      = aws_subnet.private.id
   route_table_id = aws_route_table.private_rt.id
 }
 
-# SSH Key Pair
+# SSH Key Pair (uses the public key path)
 resource "aws_key_pair" "deployer" {
   key_name   = var.ssh_key_name
   public_key = file(var.ssh_pubkey_path)
@@ -139,16 +143,15 @@ resource "aws_instance" "mongo" {
   key_name               = aws_key_pair.deployer.key_name
 
   provisioner "local-exec" {
-  command = <<-EOT
-    mkdir -p "${path.module}/../ansible"
-
-    cat > "${path.module}/../ansible/inventory.ini" <<EOF
+    command = <<-EOT
+      mkdir -p "${path.module}/../ansible"
+      cat > "${path.module}/../ansible/inventory.ini" <<EOF
 [mongo]
-mongo1 ansible_host=${self.private_ip} ansible_user=ubuntu ansible_ssh_private_key_file=/Users/meenuchauhan/.ssh/id_ed25519 ansible_ssh_common_args='-o ProxyCommand="ssh -i /Users/meenuchauhan/.ssh/id_ed25519 -W %h:%p ubuntu@${aws_instance.bastion.public_ip}"'
+mongo1 ansible_host=${self.private_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.private_key_path} ansible_ssh_common_args='-o ProxyCommand="ssh -i ${var.private_key_path} -W %h:%p ubuntu@${aws_instance.bastion.public_ip}"'
 EOF
-  EOT
-  interpreter = ["/bin/bash", "-c"]
-}
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
 
   tags = {
     Name = "mongo-server"
