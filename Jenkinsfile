@@ -66,18 +66,18 @@ pipeline {
     }
 
     stage('Generate Ansible Inventory') {
-      steps {
-        script {
-          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
-          def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
+  steps {
+    script {
+      def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
+      def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
 
-          writeFile file: 'ansible/inventory.ini', text: """
+      writeFile file: 'ansible/inventory.ini', text: """
 [mongo]
-mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/.ssh/jenkins-key ansible_ssh_common_args='-o ProxyCommand="ssh -i /home/ubuntu/.ssh/jenkins-key -W %h:%p ubuntu@${bastionIp}"'
-          """
-        }
-      }
+mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/.ssh/ubuntu-slave-jen.pem ansible_ssh_common_args='-o ProxyCommand="ssh -i /home/ubuntu/.ssh/ubuntu-slave-jen.pem -W %h:%p ubuntu@${bastionIp}"'
+"""
     }
+  }
+}
 
     stage('Ansible Install MongoDB') {
       steps {
