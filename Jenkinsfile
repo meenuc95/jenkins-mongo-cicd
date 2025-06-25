@@ -6,15 +6,11 @@ pipeline {
   }
 
   stages {
-    stage('Terraform: Init & Apply') {
+    stage('Terraform Init & Apply') {
       steps {
-        withCredentials([
-          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-demo'],
-          file(credentialsId: 'jenkins-ec2-pem-key', variable: 'PEM_KEY')
-        ]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-demo']]) {
           dir('terraform') {
             sh '''
-              export TF_VAR_ssh_pubkey_path=./keys/jenkins-key.pub
               terraform init
               terraform apply -auto-approve
             '''
@@ -23,50 +19,44 @@ pipeline {
       }
     }
 
-    stage('Generate Ansible Inventory') {
+    stage('Generate Inventory File') {
       steps {
-        withCredentials([file(credentialsId: 'jenkins-ec2-pem-key', variable: 'PEM_KEY')]) {
-          script {
-            def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_ip", returnStdout: true).trim()
-            def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
+        script {
+          def bastionIp = sh(script: "terraform -chdir=terraform output -raw bastion_host_ip", returnStdout: true).trim()
+          def mongoIp   = sh(script: "terraform -chdir=terraform output -raw mongo_private_ip", returnStdout: true).trim()
 
-            writeFile file: 'ansible/inventory.ini', text: """
+          writeFile file: 'ansible/inventory.ini', text: """
 [mongo]
-mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=${PEM_KEY} ansible_ssh_common_args='-o StrictHostKeyChecking=no -o ProxyCommand="ssh -i ${PEM_KEY} -o StrictHostKeyChecking=no -W %h:%p ubuntu@${bastionIp}"'
-            """
-          }
+mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/jenkins-key ansible_ssh_common_args='-o ProxyCommand="ssh -i /home/ubuntu/jenkins-key -W %h:%p ubuntu@${bastionIp}"'
+          """
         }
       }
     }
 
-    stage('Ansible: Install MongoDB') {
+    stage('Ansible Install MongoDB') {
       steps {
-        withCredentials([file(credentialsId: 'jenkins-ec2-pem-key', variable: 'PEM_KEY')]) {
-          sh '''
-            ansible -i ansible/inventory.ini mongo1 -m ping
-            ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
-          '''
-        }
+        sh '''
+          ansible -i ansible/inventory.ini mongo1 -m ping
+          ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
+        '''
       }
     }
 
-    stage('Verify MongoDB Status') {
+    stage('Verify MongoDB') {
       steps {
-        withCredentials([file(credentialsId: 'jenkins-ec2-pem-key', variable: 'PEM_KEY')]) {
-          sh '''
-            ansible -i ansible/inventory.ini mongo1 -a "systemctl is-active mongod || true"
-          '''
-        }
+        sh '''
+          ansible -i ansible/inventory.ini mongo1 -a "systemctl status mongod || true"
+        '''
       }
     }
   }
 
   post {
     success {
-      echo '✅ MongoDB infrastructure is ready and running.'
+      echo 'MongoDB infrastructure is deployed successfully.'
     }
     failure {
-      echo '❌ Pipeline failed. Check logs.'
+      echo 'Pipeline failed. Please check logs.'
     }
   }
 }
