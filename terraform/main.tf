@@ -143,17 +143,5 @@ resource "aws_instance" "mongo" {
   vpc_security_group_ids = [aws_security_group.mongo_sg.id]
   key_name               = var.ssh_key_name
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      mkdir -p "${path.module}/../ansible"
-
-      cat > "${path.module}/../ansible/inventory.ini" <<EOF
-[mongo]
-mongo1 ansible_host=${self.private_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.private_key_path} ansible_ssh_common_args='-o ProxyCommand="ssh -i ${var.private_key_path} -W %h:%p ubuntu@${aws_instance.bastion.public_ip}"'
-EOF
-    EOT
-    interpreter = ["/bin/bash", "-c"]
-  }
-
   tags = { Name = "mongo-server" }
 }
