@@ -77,7 +77,6 @@ mongo1 ansible_host=${mongoIp} ansible_user=ubuntu ansible_ssh_private_key_file=
         retry(3) {
           sh '''
             sleep 10
-            ansible -i ansible/inventory.ini mongo1 -m ping
             ansible-playbook -i ansible/inventory.ini ansible/mongodb.yml
           '''
         }
