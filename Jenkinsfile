@@ -4,10 +4,6 @@ pipeline {
   environment {
     AWS_DEFAULT_REGION = 'us-east-1'
   }
-  tools{
-    terraform 'terraform-11'
-  }
-
   stages {
     stage('Terraform: Init & Apply') {
       steps {
